@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+data/raw/
+data/interim/
+data/processed/
+*.csv
+*.xlsx
+*.xls
+*.parquet
+*.pkl
+*.joblib
+*.zip
+*.xml
+
+# Generated outputs
+reports/figures/
+outputs/
+logs/
+*.log
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
