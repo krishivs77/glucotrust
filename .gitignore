@@ -15,7 +15,8 @@ env/
 data/raw/
 data/interim/
 data/processed/
-*.csv
+
+# Raw/data-like files outside data folders
 *.xlsx
 *.xls
 *.parquet
@@ -23,6 +24,9 @@ data/processed/
 *.joblib
 *.zip
 *.xml
+
+# Generated row-level prediction files can be large/regenerable
+reports/*predictions*.csv
 
 # Generated outputs
 reports/figures/
