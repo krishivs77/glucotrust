@@ -56,6 +56,20 @@ Parsed event streams include:
 - Wearable steps
 - Wearable sleep states
 
+## Dataset Source
+
+The data used in this project comes from the OhioT1DM dataset. I accessed the dataset through the Kaggle-hosted OhioT1DM mirror:
+
+- Kaggle dataset: `https://www.kaggle.com/datasets/ryanmouton/ohiot1dm`
+
+The original OhioT1DM dataset was introduced for blood glucose level prediction research and includes continuous glucose monitoring, insulin, physiological sensor, and self-reported life-event data for people with type 1 diabetes.
+
+Original dataset reference:
+
+Marling, C., & Bunescu, R. (2020). *The OhioT1DM Dataset for Blood Glucose Level Prediction*.
+
+Raw data files are not included in this repository. Users should obtain the dataset from the original source or the linked Kaggle mirror and place the XML files under `data/raw/` before running the pipeline.
+
 ## Current Data Pipeline
 
 The current pipeline converts raw XML event streams into machine-learning-ready forecasting datasets.
