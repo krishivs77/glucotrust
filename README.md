@@ -397,6 +397,19 @@ Possible uncertainty drivers:
 3. Insulin context strongly changes the forecast.
 4. Wearable/activity pattern is outside typical training behavior.
 
+## Reproducibility
+
+The raw dataset is not included in this repository. To reproduce the analysis, place the XML files under `data/raw/` and run the scripts in the following order:
+
+1. `src/data/build_manifest.py`
+2. `src/data/parse_xml_events.py`
+3. `src/data/build_cgm_timeline.py`
+4. `src/features/build_cgm_lag_dataset.py`
+5. `src/features/build_context_dataset.py`
+6. `src/models/train_context_baselines.py`
+7. `src/models/train_context_xgb_ensemble_uncertainty.py`
+8. `src/evaluation/context_selective_prediction.py`
+
 ## Disclaimer
 
 This project is for research and educational purposes only. It is not intended for medical decision-making.
