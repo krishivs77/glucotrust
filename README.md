@@ -66,6 +66,21 @@ Initial results show that machine learning models improve over the persistence b
 
 Future work will add meal, insulin, activity, sleep, and wearable features to test whether contextual events improve forecasting, especially during rapid glucose changes and high-error windows.
 
+## Initial Reliability Analysis
+
+To estimate forecast uncertainty, the project trains an ensemble of 10 XGBoost models using bootstrapped training samples and different random seeds. The ensemble mean is used as the final prediction, while the standard deviation across ensemble predictions is used as an uncertainty estimate.
+
+The ensemble achieved similar or slightly better performance than a single XGBoost model:
+
+| Target | MAE | RMSE | R² | Uncertainty-error Spearman |
+|---|---:|---:|---:|---:|
+| 30-min glucose | 14.29 | 20.60 | 0.889 | 0.221 |
+| 60-min glucose | 24.50 | 33.30 | 0.709 | 0.184 |
+
+Ensemble uncertainty was positively associated with actual forecast error. At 30 minutes, the median absolute error increased from 7.23 mg/dL in the lowest-uncertainty bin to 14.82 mg/dL in the highest-uncertainty bin. At 60 minutes, it increased from 14.93 mg/dL to 26.19 mg/dL.
+
+This suggests that ensemble disagreement provides a useful, though imperfect, signal for identifying less reliable glucose forecasts.
+
 ## Reliability Analyses
 
 - Error vs uncertainty
