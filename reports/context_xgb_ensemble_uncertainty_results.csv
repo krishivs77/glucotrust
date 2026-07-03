@@ -1,0 +1,3 @@
+model,feature_set,target,n_models,bootstrap_frac,mae,rmse,r2,uncertainty_error_spearman
+context_xgboost_ensemble,cgm_plus_context,target_glucose_30min,10,0.85,13.850629524385738,20.01722453296103,0.8947734742020597,0.2828032003007121
+context_xgboost_ensemble,cgm_plus_context,target_glucose_60min,10,0.85,23.753362321997926,32.28090391240707,0.7262069560796267,0.252495872760888
