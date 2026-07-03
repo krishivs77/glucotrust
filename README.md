@@ -81,6 +81,25 @@ Ensemble uncertainty was positively associated with actual forecast error. At 30
 
 This suggests that ensemble disagreement provides a useful, though imperfect, signal for identifying less reliable glucose forecasts.
 
+## Selective Prediction
+
+Selective prediction evaluates whether the model can improve reliability by abstaining from forecasts with high ensemble uncertainty. Predictions were ranked by ensemble standard deviation, and performance was recomputed after keeping only the most confident predictions.
+
+| Target | Coverage | RMSE |
+|---|---:|---:|
+| 30-min glucose | 100% | 20.59 |
+| 30-min glucose | 80% | 17.98 |
+| 30-min glucose | 60% | 16.85 |
+| 30-min glucose | 40% | 15.85 |
+| 30-min glucose | 30% | 15.55 |
+| 60-min glucose | 100% | 33.30 |
+| 60-min glucose | 80% | 30.43 |
+| 60-min glucose | 60% | 28.70 |
+| 60-min glucose | 40% | 27.64 |
+| 60-min glucose | 30% | 27.68 |
+
+As coverage decreases, RMSE generally improves on the retained predictions. This suggests that ensemble uncertainty can support a practical trust mechanism: the model can provide forecasts when confidence is higher and flag uncertain cases for caution or further verification.
+
 ## Reliability Analyses
 
 - Error vs uncertainty
