@@ -29,7 +29,6 @@ data/processed/
 reports/*predictions*.csv
 
 # Generated outputs
-reports/figures/
 outputs/
 logs/
 *.log
