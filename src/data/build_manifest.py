@@ -1,21 +1,33 @@
 from pathlib import Path
 import xml.etree.ElementTree as ET
+
 import pandas as pd
 
 
-RAW_DIR = Path("data/raw")
+RAW_DIR = Path("data/raw/OhioT1DM")
 OUT_PATH = Path("data/interim/xml_manifest.csv")
-
 
 TIMESTAMP_KEYS = ["ts", "ts_begin", "ts_end", "tbegin", "tend"]
 
 
-def infer_split(file_name: str) -> str:
-    lower = file_name.lower()
-    if "training" in lower:
+def infer_split(xml_path: Path) -> str:
+    parts = [part.lower() for part in xml_path.parts]
+    file_name = xml_path.name.lower()
+
+    if "train" in parts or "training" in file_name:
         return "training"
-    if "testing" in lower:
+
+    if "test" in parts or "testing" in file_name:
         return "testing"
+
+    return "unknown"
+
+
+def infer_cohort_year(xml_path: Path) -> str:
+    for part in xml_path.parts:
+        if part in {"2018", "2020"}:
+            return part
+
     return "unknown"
 
 
@@ -23,7 +35,6 @@ def parse_timestamp(value: str):
     if value is None:
         return pd.NaT
 
-    # OhioT1DM timestamps look like: 29-10-2021 00:01:00
     return pd.to_datetime(value, format="%d-%m-%Y %H:%M:%S", errors="coerce")
 
 
@@ -64,8 +75,9 @@ def inspect_xml_file(xml_path: Path) -> dict:
     row = {
         "file_name": xml_path.name,
         "file_path": str(xml_path),
+        "cohort_year": infer_cohort_year(xml_path),
         "patient_id": patient_id,
-        "split": infer_split(xml_path.name),
+        "split": infer_split(xml_path),
         "weight": weight,
         "insulin_type": insulin_type,
         "start_time": start_time,
@@ -73,11 +85,9 @@ def inspect_xml_file(xml_path: Path) -> dict:
         "duration_days": duration_days,
     }
 
-    # Add one count column per stream.
     for stream_name, count in stream_counts.items():
         row[f"{stream_name}_count"] = count
 
-    # Convenience flag for wearable data.
     wearable_streams = [
         "basis_heart_rate",
         "basis_gsr",
@@ -98,16 +108,17 @@ def main() -> None:
         raise FileNotFoundError(f"No XML files found under {RAW_DIR.resolve()}")
 
     rows = []
+
     for xml_path in xml_files:
         print(f"Inspecting {xml_path}")
         rows.append(inspect_xml_file(xml_path))
 
     manifest = pd.DataFrame(rows)
 
-    # Nice column ordering.
     base_cols = [
         "file_name",
         "file_path",
+        "cohort_year",
         "patient_id",
         "split",
         "weight",
@@ -117,7 +128,7 @@ def main() -> None:
         "duration_days",
         "has_wearable_streams",
     ]
-    other_cols = [c for c in manifest.columns if c not in base_cols]
+    other_cols = [col for col in manifest.columns if col not in base_cols]
     manifest = manifest[base_cols + sorted(other_cols)]
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -129,9 +140,21 @@ def main() -> None:
     print("Summary:")
     print(f"  XML files: {len(manifest)}")
     print(f"  Patients: {manifest['patient_id'].nunique()}")
+    print(f"  Cohorts: {manifest['cohort_year'].value_counts().to_dict()}")
     print(f"  Splits: {manifest['split'].value_counts().to_dict()}")
     print()
-    print(manifest[["file_name", "patient_id", "split", "duration_days", "glucose_level_count"]])
+    print(
+        manifest[
+            [
+                "cohort_year",
+                "file_name",
+                "patient_id",
+                "split",
+                "duration_days",
+                "glucose_level_count",
+            ]
+        ]
+    )
 
 
 if __name__ == "__main__":

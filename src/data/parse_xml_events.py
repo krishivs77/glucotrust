@@ -4,16 +4,28 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 
 
-RAW_DIR = Path("data/raw")
+RAW_DIR = Path("data/raw/OhioT1DM")
 OUT_DIR = Path("data/interim/events")
 
 
-def infer_split(file_name: str) -> str:
-    lower = file_name.lower()
-    if "training" in lower:
+def infer_split(xml_path: Path) -> str:
+    parts = [part.lower() for part in xml_path.parts]
+    file_name = xml_path.name.lower()
+
+    if "train" in parts or "training" in file_name:
         return "training"
-    if "testing" in lower:
+
+    if "test" in parts or "testing" in file_name:
         return "testing"
+
+    return "unknown"
+
+
+def infer_cohort_year(xml_path: Path) -> str:
+    for part in xml_path.parts:
+        if part in {"2018", "2020"}:
+            return part
+
     return "unknown"
 
 
@@ -38,10 +50,11 @@ def parse_xml_file(xml_path: Path) -> list[dict]:
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
+    cohort_year = infer_cohort_year(xml_path)
     patient_id = root.attrib.get("id")
     weight = parse_numeric(root.attrib.get("weight"))
     insulin_type = root.attrib.get("insulin_type")
-    split = infer_split(xml_path.name)
+    split = infer_split(xml_path)
 
     rows = []
 
@@ -51,6 +64,8 @@ def parse_xml_file(xml_path: Path) -> list[dict]:
         for event_idx, event in enumerate(stream):
             row = {
                 "source_file": xml_path.name,
+                "source_path": str(xml_path),
+                "cohort_year": cohort_year,
                 "patient_id": patient_id,
                 "split": split,
                 "weight": weight,
@@ -98,7 +113,6 @@ def main() -> None:
     for stream_name in stream_names:
         stream_df = events[events["stream"] == stream_name].copy()
 
-        # Drop all-empty columns to keep each stream table cleaner.
         stream_df = stream_df.dropna(axis=1, how="all")
 
         out_path = OUT_DIR / f"{stream_name}.csv"
