@@ -1,12 +1,12 @@
 # GlucoTrust
 
-Reliability-aware blood glucose forecasting from continuous glucose monitoring, insulin, meal, and activity data.
+Reliability-aware blood glucose forecasting from continuous glucose monitoring, meal, and insulin time-series data.
 
 ## Overview
 
-GlucoTrust is a clinical machine learning project focused on short-term blood glucose forecasting. The goal is not only to predict future glucose values, but also to study when forecasts are unreliable and which input signals may be driving prediction instability.
+GlucoTrust is a clinical machine learning project for short-term blood glucose forecasting. The project predicts future glucose values from recent continuous glucose monitoring (CGM), meal, insulin, and basal-rate data, while also estimating when forecasts may be less reliable.
 
-The project is motivated by the idea that a forecasting model should not simply output a number. It should also communicate when its prediction may be difficult to trust, especially in safety-relevant situations such as hypoglycemia or hyperglycemia risk.
+The goal is not only to output a glucose prediction, but to study whether model uncertainty can help identify forecasts that should be trusted less. This is especially important in safety-relevant settings such as hypoglycemia and hyperglycemia risk.
 
 ## Research Question
 
@@ -14,26 +14,34 @@ Can short-term blood glucose be forecast from recent CGM, meal, and insulin data
 
 ## Project Goals
 
-- Build a reproducible glucose forecasting pipeline from raw diabetes time-series data.
+- Build a reproducible glucose forecasting pipeline from raw diabetes time-series XML data.
 - Predict blood glucose 30 and 60 minutes into the future.
-- Compare persistence, Ridge regression, Random Forest, XGBoost, and XGBoost ensemble models.
-- Evaluate the effect of adding meal and insulin context beyond CGM-only history.
+- Compare persistence, Ridge regression, Random Forest, XGBoost, and bootstrapped XGBoost ensemble models.
+- Evaluate whether meal and insulin context improves forecasting beyond CGM-only history.
 - Estimate forecast uncertainty using ensemble disagreement.
 - Test whether uncertainty can support selective prediction and abstention.
-- Extend the project with wearable/life-event features, glucose-risk classification, and uncertainty attribution.
+- Extend the project with patient-specific evaluation, wearable/life-event features, glucose-risk classification, and uncertainty attribution.
 
 ## Dataset
 
-This project uses OhioT1DM-style XML files containing patient-level diabetes time-series data.
+This project uses the official OhioT1DM dataset for blood glucose prediction research.
 
-The current dataset contains:
+The current pipeline uses both the 2018 and 2020 OhioT1DM cohorts.
 
-- 6 patients
-- 12 XML files
-- 6 training files
-- 6 testing files
-- Approximately 41-46 training days per patient
-- Approximately 9.5-10.4 testing days per patient
+Current dataset summary:
+
+- 12 patients
+- 24 XML files
+- 12 training files
+- 12 testing files
+- 2018 cohort: 6 patients
+- 2020 cohort: 6 patients
+- Approximately 39-53 training days per patient
+- Approximately 9.5-13.9 testing days per patient
+- 1,507,154 parsed events
+- 166,533 CGM glucose readings
+- 2,168 meal events
+- 3,733 bolus insulin events
 
 Parsed event streams include:
 
@@ -55,24 +63,21 @@ Parsed event streams include:
 - Wearable air temperature
 - Wearable steps
 - Wearable sleep states
+- Acceleration streams
 
 ## Dataset Source
 
-The data used in this project comes from the OhioT1DM dataset. I accessed the dataset through the Kaggle-hosted OhioT1DM mirror:
+This project uses the OhioT1DM dataset for blood glucose level prediction. The dataset was obtained directly from the original OhioT1DM dataset source after requesting access.
 
-- Kaggle dataset: `https://www.kaggle.com/datasets/ryanmouton/ohiot1dm`
-
-The original OhioT1DM dataset was introduced for blood glucose level prediction research and includes continuous glucose monitoring, insulin, physiological sensor, and self-reported life-event data for people with type 1 diabetes.
+Raw data files are not included in this repository. To reproduce the analysis, users should request access to the OhioT1DM dataset from the original dataset source and place the XML files under `data/raw/OhioT1DM/`.
 
 Original dataset reference:
 
 Marling, C., & Bunescu, R. (2020). *The OhioT1DM Dataset for Blood Glucose Level Prediction*.
 
-Raw data files are not included in this repository. Users should obtain the dataset from the original source or the linked Kaggle mirror and place the XML files under `data/raw/` before running the pipeline.
-
 ## Current Data Pipeline
 
-The current pipeline converts raw XML event streams into machine-learning-ready forecasting datasets.
+The pipeline converts raw XML event streams into machine-learning-ready forecasting datasets.
 
 Raw XML files are first summarized in a manifest, then parsed into event-level tables. CGM readings are resampled into a regular 5-minute timeline, lagged glucose features are generated, and meal/insulin event summaries are aligned to each timestamp without using future information.
 
@@ -84,6 +89,10 @@ Pipeline:
 4. 5-minute CGM timeline
 5. CGM-only lagged forecasting dataset
 6. CGM + meal/insulin context forecasting dataset
+7. Baseline model comparison
+8. XGBoost ensemble uncertainty analysis
+9. Selective prediction analysis
+10. Visualization/report generation
 
 Implemented scripts:
 
@@ -107,7 +116,7 @@ Implemented scripts:
 
 ## Prediction Setup
 
-The project currently evaluates short-term glucose forecasting as a time-series regression task.
+The project evaluates short-term glucose forecasting as a time-series regression task.
 
 For each timestamp, the model uses recent patient history and available context to predict future glucose.
 
@@ -123,15 +132,17 @@ At 5-minute sampling:
 - 30-minute forecast = 6 steps ahead
 - 60-minute forecast = 12 steps ahead
 
+All feature engineering is performed using information available at or before the prediction timestamp. Future glucose values are used only as supervised learning targets.
+
 ## Processed Datasets
 
 ### CGM-only dataset
 
 The CGM-only supervised dataset contains:
 
-- 85,986 usable forecasting windows
-- 70,035 training rows
-- 15,951 testing rows
+- 168,378 usable forecasting windows
+- 136,565 training rows
+- 31,813 testing rows
 - 32 CGM-only lag/trend features
 - 2 regression targets:
   - `target_glucose_30min`
@@ -162,9 +173,9 @@ Context features include:
 
 The combined dataset contains:
 
-- 85,986 usable forecasting windows
-- 70,035 training rows
-- 15,951 testing rows
+- 168,378 usable forecasting windows
+- 136,565 training rows
+- 31,813 testing rows
 - 58 total model features
 - 32 CGM-only features
 - 26 meal/insulin context features
@@ -184,16 +195,16 @@ The persistence baseline predicts that future glucose will equal current glucose
 
 | Model | 30-min MAE | 30-min RMSE | 30-min R² | 60-min MAE | 60-min RMSE | 60-min R² |
 |---|---:|---:|---:|---:|---:|---:|
-| Persistence | 16.48 | 22.96 | 0.862 | 27.47 | 36.93 | 0.642 |
-| Ridge Regression | 14.56 | 20.67 | 0.888 | 25.21 | 33.59 | 0.703 |
-| Random Forest | 14.31 | 20.59 | 0.889 | 24.83 | 33.73 | 0.701 |
-| XGBoost | 14.28 | 20.63 | 0.888 | 24.58 | 33.44 | 0.706 |
+| Persistence | 17.20 | 24.23 | 0.839 | 28.93 | 39.46 | 0.573 |
+| Ridge Regression | 15.00 | 21.24 | 0.876 | 26.37 | 35.15 | 0.661 |
+| Random Forest | 14.39 | 20.73 | 0.882 | 25.34 | 34.49 | 0.673 |
+| XGBoost | 14.54 | 20.84 | 0.881 | 25.36 | 34.33 | 0.676 |
 
 ![CGM-only baseline forecasting error](reports/figures/cgm_baseline_mae.png)
 
-Initial results show that machine learning models improve over the persistence baseline for both forecast horizons. The improvement is modest for 30-minute prediction, where current glucose is already a strong baseline, but becomes more meaningful at 60 minutes.
+The machine learning models improve over the persistence baseline for both forecast horizons. The improvement is larger for 60-minute prediction, where current glucose alone becomes a weaker baseline.
 
-Ridge regression, Random Forest, and XGBoost perform similarly in the CGM-only setting. This suggests that much of the short-term signal is captured by glucose momentum and recent trend features.
+In the CGM-only setting, Random Forest performed best at the 30-minute horizon, while XGBoost performed best at the 60-minute horizon.
 
 ## CGM + Meal/Insulin Context Results
 
@@ -201,23 +212,23 @@ Meal and insulin context features were added to test whether recent food and ins
 
 | Model | Feature Set | 30-min MAE | 30-min RMSE | 30-min R² | 60-min MAE | 60-min RMSE | 60-min R² |
 |---|---|---:|---:|---:|---:|---:|---:|
-| Persistence | CGM only | 16.48 | 22.96 | 0.862 | 27.47 | 36.93 | 0.642 |
-| Ridge Regression | CGM only | 14.56 | 20.67 | 0.888 | 25.21 | 33.59 | 0.703 |
-| Random Forest | CGM only | 14.31 | 20.59 | 0.889 | 24.83 | 33.73 | 0.701 |
-| XGBoost | CGM only | 14.28 | 20.63 | 0.888 | 24.58 | 33.44 | 0.706 |
-| Ridge Regression | CGM + context | 14.04 | 20.02 | 0.895 | 24.23 | 32.40 | 0.724 |
-| Random Forest | CGM + context | 13.95 | 20.16 | 0.893 | 24.27 | 33.20 | 0.710 |
-| XGBoost | CGM + context | 13.94 | 20.13 | 0.894 | 24.00 | 32.60 | 0.721 |
+| Persistence | CGM only | 17.20 | 24.23 | 0.839 | 28.93 | 39.46 | 0.573 |
+| Ridge Regression | CGM only | 15.00 | 21.24 | 0.876 | 26.37 | 35.15 | 0.661 |
+| Random Forest | CGM only | 14.39 | 20.73 | 0.882 | 25.34 | 34.49 | 0.673 |
+| XGBoost | CGM only | 14.54 | 20.84 | 0.881 | 25.36 | 34.33 | 0.676 |
+| Ridge Regression | CGM + context | 14.54 | 20.67 | 0.883 | 25.46 | 34.07 | 0.681 |
+| Random Forest | CGM + context | 14.06 | 20.25 | 0.887 | 24.68 | 33.58 | 0.690 |
+| XGBoost | CGM + context | 14.24 | 20.54 | 0.884 | 24.53 | 33.46 | 0.693 |
 
 ![Context vs CGM-only MAE, 30-minute forecast](reports/figures/context_vs_cgm_mae_30min.png)
 
 ![Context vs CGM-only MAE, 60-minute forecast](reports/figures/context_vs_cgm_mae_60min.png)
 
-Adding meal and insulin context modestly improved average forecasting error. The improvement was larger for the 60-minute horizon, where meal and insulin effects have more time to influence future glucose.
+Adding meal and insulin context improved average forecasting error across model families. The improvement was more pronounced for the 60-minute horizon, where meal and insulin effects have more time to influence future glucose.
 
-The strongest context result was the 60-minute Ridge model, which improved from 25.21 MAE with CGM-only features to 24.23 MAE with context features. XGBoost improved from 24.58 to 24.00 MAE at the 60-minute horizon.
+For XGBoost, adding context improved 60-minute MAE from 25.36 to 24.53 mg/dL. For Random Forest, adding context improved 60-minute MAE from 25.34 to 24.68 mg/dL.
 
-Although the global MAE gains are modest, this result is important because the model is no longer relying only on glucose momentum. It can now use recent carbohydrate intake, insulin delivery, and basal rate context.
+Although the global MAE gains are modest, the context features make the model more clinically meaningful by allowing it to use recent carbohydrate intake, insulin delivery, and basal-rate information instead of relying only on glucose momentum.
 
 ## Ensemble Uncertainty
 
@@ -234,28 +245,28 @@ The ensemble mean is used as the final forecast. The ensemble standard deviation
 
 | Target | MAE | RMSE | R² | Uncertainty-error Spearman |
 |---|---:|---:|---:|---:|
-| 30-min glucose | 14.29 | 20.60 | 0.889 | 0.221 |
-| 60-min glucose | 24.50 | 33.30 | 0.709 | 0.184 |
+| 30-min glucose | 14.56 | 20.88 | 0.880 | 0.234 |
+| 60-min glucose | 25.38 | 34.33 | 0.676 | 0.184 |
 
-The CGM-only ensemble achieved similar or slightly better performance than a single XGBoost model. More importantly, ensemble uncertainty was positively associated with actual forecast error.
+The CGM-only ensemble achieved performance similar to the single XGBoost model. Ensemble uncertainty was positively associated with actual forecast error, especially for the 30-minute forecast.
 
 ## Context Ensemble Reliability
 
 | Target | MAE | RMSE | R² | Uncertainty-error Spearman |
 |---|---:|---:|---:|---:|
-| 30-min glucose | 13.85 | 20.02 | 0.895 | 0.283 |
-| 60-min glucose | 23.75 | 32.28 | 0.726 | 0.252 |
+| 30-min glucose | 14.21 | 20.51 | 0.885 | 0.296 |
+| 60-min glucose | 24.44 | 33.32 | 0.695 | 0.238 |
 
 Adding meal and insulin context improved both forecasting accuracy and uncertainty-error alignment.
 
 Compared with the CGM-only ensemble:
 
-- 30-minute MAE improved from 14.29 to 13.85.
-- 60-minute MAE improved from 24.50 to 23.75.
-- 30-minute uncertainty-error Spearman improved from 0.221 to 0.283.
-- 60-minute uncertainty-error Spearman improved from 0.184 to 0.252.
+- 30-minute MAE improved from 14.56 to 14.21.
+- 60-minute MAE improved from 25.38 to 24.44.
+- 30-minute uncertainty-error Spearman improved from 0.234 to 0.296.
+- 60-minute uncertainty-error Spearman improved from 0.184 to 0.238.
 
-This suggests that meal and insulin context improves not only the model's point predictions, but also the usefulness of ensemble disagreement as a reliability signal.
+This suggests that meal and insulin context improves not only point prediction accuracy, but also the usefulness of ensemble disagreement as a reliability signal.
 
 ## Uncertainty Bins
 
@@ -269,28 +280,39 @@ Predictions were sorted by ensemble uncertainty and split into five equal-freque
 
 ### CGM-only uncertainty bins
 
-At 30 minutes, median absolute error increased from 7.23 mg/dL in the lowest-uncertainty bin to 14.82 mg/dL in the highest-uncertainty bin.
+For the CGM-only ensemble, higher uncertainty bins generally had larger forecast errors.
 
-At 60 minutes, median absolute error increased from 14.93 mg/dL to 26.19 mg/dL.
+| Target | Uncertainty Bin | RMSE |
+|---|---|---:|
+| 30-min glucose | Very low | 14.88 |
+| 30-min glucose | Low | 16.66 |
+| 30-min glucose | Medium | 19.28 |
+| 30-min glucose | High | 21.87 |
+| 30-min glucose | Very high | 28.81 |
+| 60-min glucose | Very low | 27.47 |
+| 60-min glucose | Low | 29.67 |
+| 60-min glucose | Medium | 32.13 |
+| 60-min glucose | High | 36.04 |
+| 60-min glucose | Very high | 43.90 |
 
 ![Forecast error by uncertainty bin](reports/figures/xgb_uncertainty_bins_mae.png)
 
 ### Context uncertainty bins
 
-For the context ensemble, uncertainty bins showed an even clearer separation.
+For the context ensemble, uncertainty bins also separated lower-error and higher-error forecasts.
 
-| Target | Uncertainty Bin | Median Absolute Error | RMSE |
-|---|---|---:|---:|
-| 30-min glucose | Very low | 6.33 | 13.21 |
-| 30-min glucose | Low | 7.92 | 15.24 |
-| 30-min glucose | Medium | 9.06 | 17.71 |
-| 30-min glucose | High | 11.62 | 21.72 |
-| 30-min glucose | Very high | 15.83 | 28.48 |
-| 60-min glucose | Very low | 13.63 | 23.13 |
-| 60-min glucose | Low | 13.60 | 25.51 |
-| 60-min glucose | Medium | 15.94 | 29.41 |
-| 60-min glucose | High | 20.77 | 35.45 |
-| 60-min glucose | Very high | 27.78 | 43.63 |
+| Target | Uncertainty Bin | RMSE |
+|---|---|---:|
+| 30-min glucose | Very low | 13.46 |
+| 30-min glucose | Low | 15.16 |
+| 30-min glucose | Medium | 17.78 |
+| 30-min glucose | High | 22.53 |
+| 30-min glucose | Very high | 29.46 |
+| 60-min glucose | Very low | 24.01 |
+| 60-min glucose | Low | 27.18 |
+| 60-min glucose | Medium | 30.57 |
+| 60-min glucose | High | 36.52 |
+| 60-min glucose | Very high | 44.38 |
 
 This separation indicates that ensemble disagreement is useful for distinguishing more reliable forecasts from less reliable forecasts.
 
@@ -314,16 +336,16 @@ This is not random subsampling. The retained predictions are specifically the pr
 
 | Target | Coverage | RMSE |
 |---|---:|---:|
-| 30-min glucose | 100% | 20.59 |
-| 30-min glucose | 80% | 17.98 |
-| 30-min glucose | 60% | 16.85 |
-| 30-min glucose | 40% | 15.85 |
-| 30-min glucose | 30% | 15.55 |
-| 60-min glucose | 100% | 33.30 |
-| 60-min glucose | 80% | 30.43 |
-| 60-min glucose | 60% | 28.70 |
-| 60-min glucose | 40% | 27.64 |
-| 60-min glucose | 30% | 27.68 |
+| 30-min glucose | 100% | 20.88 |
+| 30-min glucose | 80% | 18.36 |
+| 30-min glucose | 60% | 17.04 |
+| 30-min glucose | 40% | 15.80 |
+| 30-min glucose | 30% | 15.26 |
+| 60-min glucose | 100% | 34.33 |
+| 60-min glucose | 80% | 31.49 |
+| 60-min glucose | 60% | 29.82 |
+| 60-min glucose | 40% | 28.59 |
+| 60-min glucose | 30% | 28.09 |
 
 ![CGM-only selective prediction RMSE](reports/figures/selective_prediction_rmse.png)
 
@@ -331,24 +353,24 @@ This is not random subsampling. The retained predictions are specifically the pr
 
 | Target | Coverage | RMSE |
 |---|---:|---:|
-| 30-min glucose | 100% | 20.02 |
-| 30-min glucose | 80% | 17.26 |
-| 30-min glucose | 60% | 15.50 |
-| 30-min glucose | 40% | 14.26 |
-| 30-min glucose | 30% | 13.84 |
-| 60-min glucose | 100% | 32.28 |
-| 60-min glucose | 80% | 28.75 |
-| 60-min glucose | 60% | 26.14 |
-| 60-min glucose | 40% | 24.35 |
-| 60-min glucose | 30% | 23.75 |
+| 30-min glucose | 100% | 20.51 |
+| 30-min glucose | 80% | 17.57 |
+| 30-min glucose | 60% | 15.57 |
+| 30-min glucose | 40% | 14.34 |
+| 30-min glucose | 30% | 13.82 |
+| 60-min glucose | 100% | 33.32 |
+| 60-min glucose | 80% | 29.93 |
+| 60-min glucose | 60% | 27.38 |
+| 60-min glucose | 40% | 25.64 |
+| 60-min glucose | 30% | 24.97 |
 
 ![Selective prediction comparison, 30-minute forecast](reports/figures/selective_prediction_context_comparison_30min.png)
 
 ![Selective prediction comparison, 60-minute forecast](reports/figures/selective_prediction_context_comparison_60min.png)
 
-Context-aware selective prediction produced a cleaner coverage-error tradeoff than the CGM-only version, especially for 60-minute forecasts. At 60 minutes, the context ensemble reduced RMSE from 32.28 at full coverage to 23.75 when retaining the most confident 30% of predictions.
+Context-aware selective prediction produced a cleaner coverage-error tradeoff than the CGM-only version, especially for 60-minute forecasts.
 
-This supports the main reliability claim of the project: ensemble uncertainty can help identify which glucose forecasts are more likely to be trustworthy.
+At 60 minutes, the context ensemble reduced RMSE from 33.32 at full coverage to 24.97 when retaining the most confident 30% of predictions. This supports the main reliability claim of the project: ensemble uncertainty can help identify which glucose forecasts are more likely to be trustworthy.
 
 ## Current Interpretation
 
@@ -363,6 +385,30 @@ The reliability results are the most important part of the project. The model do
 
 ## Planned Next Steps
 
+### Patient-specific evaluation
+
+Future analysis should evaluate whether model performance and uncertainty behavior differ by patient.
+
+Potential questions:
+
+- Which patients have the highest forecast error?
+- Which patients benefit most from context features?
+- Does uncertainty-error correlation vary across patients?
+- Are high-uncertainty cases concentrated in specific patients or time periods?
+
+### Event-specific evaluation
+
+Future analysis should evaluate whether meal and insulin context helps most during physiologically meaningful time windows.
+
+Potential comparisons:
+
+- no recent meal or bolus
+- recent meal only
+- recent bolus only
+- recent meal and bolus
+- recent hypoglycemia event
+- recent exercise event
+
 ### Add wearable and life-event features
 
 Future versions may add:
@@ -374,6 +420,7 @@ Future versions may add:
 - illness indicators
 - stressor indicators
 - work indicators
+- acceleration features
 
 ### Add glucose-risk classification tasks
 
@@ -384,17 +431,6 @@ In addition to regression forecasting, the project can define classification tas
 - glucose zone prediction: low / in-range / high
 
 This would allow evaluation using classification metrics such as AUROC, AUPRC, sensitivity, specificity, F1, and calibration.
-
-### Add patient-specific evaluation
-
-Future analysis should evaluate whether model performance and uncertainty behavior differ by patient.
-
-Potential questions:
-
-- Which patients have the highest forecast error?
-- Which patients benefit most from context features?
-- Does uncertainty-error correlation vary across patients?
-- Are high-uncertainty cases concentrated in specific patients or time periods?
 
 ### Add uncertainty attribution
 
@@ -413,16 +449,31 @@ Possible uncertainty drivers:
 
 ## Reproducibility
 
-The raw dataset is not included in this repository. To reproduce the analysis, place the XML files under `data/raw/` and run the scripts in the following order:
+The raw dataset is not included in this repository. To reproduce the analysis, request access to the OhioT1DM dataset and place the XML files under:
+
+- `data/raw/OhioT1DM/2018/train/`
+- `data/raw/OhioT1DM/2018/test/`
+- `data/raw/OhioT1DM/2020/train/`
+- `data/raw/OhioT1DM/2020/test/`
+
+Then run the scripts in the following order:
 
 1. `src/data/build_manifest.py`
 2. `src/data/parse_xml_events.py`
 3. `src/data/build_cgm_timeline.py`
 4. `src/features/build_cgm_lag_dataset.py`
 5. `src/features/build_context_dataset.py`
-6. `src/models/train_context_baselines.py`
-7. `src/models/train_context_xgb_ensemble_uncertainty.py`
-8. `src/evaluation/context_selective_prediction.py`
+6. `src/models/train_cgm_baselines.py`
+7. `src/models/train_context_baselines.py`
+8. `src/models/train_xgb_ensemble_uncertainty.py`
+9. `src/models/train_context_xgb_ensemble_uncertainty.py`
+10. `src/evaluation/selective_prediction.py`
+11. `src/evaluation/context_selective_prediction.py`
+12. `src/visualization/plot_cgm_baseline_results.py`
+13. `src/visualization/plot_uncertainty_bins.py`
+14. `src/visualization/plot_selective_prediction.py`
+15. `src/visualization/plot_context_comparison.py`
+16. `src/visualization/plot_context_selective_prediction.py`
 
 ## Disclaimer
 
