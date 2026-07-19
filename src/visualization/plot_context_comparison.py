@@ -6,8 +6,6 @@ import pandas as pd
 
 RESULTS_PATH = Path("reports/context_baseline_results.csv")
 FIGURES_DIR = Path("reports/figures")
-OUT_PATH = FIGURES_DIR / "context_vs_cgm_mae.png"
-
 
 MODEL_LABELS = {
     "persistence": "Persistence",
@@ -21,62 +19,119 @@ FEATURE_SET_LABELS = {
     "cgm_plus_context": "CGM + meal/insulin",
 }
 
-TARGET_LABELS = {
-    "target_glucose_30min": "30-min forecast",
-    "target_glucose_60min": "60-min forecast",
+HORIZON_LABELS = {
+    30: "30-minute forecast",
+    60: "60-minute forecast",
 }
 
 
-def make_target_plot(results: pd.DataFrame, target: str, out_path: Path) -> None:
-    target_df = results[results["target"] == target].copy()
+def make_horizon_plot(
+    results: pd.DataFrame,
+    horizon: int,
+    out_path: Path,
+) -> None:
+    horizon_df = results[
+        (results["evaluation_split"] == "test")
+        & (results["horizon_minutes"] == horizon)
+    ].copy()
 
-    target_df["model_label"] = target_df["model"].map(MODEL_LABELS)
-    target_df["feature_set_label"] = target_df["feature_set"].map(FEATURE_SET_LABELS)
+    required = {
+        "model",
+        "feature_set",
+        "mae",
+    }
 
-    model_order = ["Persistence", "Ridge", "Random Forest", "XGBoost"]
+    missing = required - set(horizon_df.columns)
 
-    pivot = target_df.pivot(
-        index="model_label",
-        columns="feature_set_label",
-        values="mae",
-    ).loc[model_order]
+    if missing:
+        raise ValueError(
+            f"Missing required columns: {sorted(missing)}"
+        )
 
-    ax = pivot.plot(kind="bar", figsize=(9, 5))
+    horizon_df["model_label"] = (
+        horizon_df["model"]
+        .map(MODEL_LABELS)
+    )
 
-    ax.set_title(f"CGM-only vs context features: {TARGET_LABELS[target]}")
+    horizon_df["feature_set_label"] = (
+        horizon_df["feature_set"]
+        .map(FEATURE_SET_LABELS)
+    )
+
+    model_order = [
+        "Persistence",
+        "Ridge",
+        "Random Forest",
+        "XGBoost",
+    ]
+
+    pivot = (
+        horizon_df.pivot(
+            index="model_label",
+            columns="feature_set_label",
+            values="mae",
+        )
+        .loc[model_order]
+    )
+
+    ax = pivot.plot(
+        kind="bar",
+        figsize=(9, 5),
+    )
+
+    ax.set_title(
+        f"CGM-only vs context features ({HORIZON_LABELS[horizon]})"
+    )
+
     ax.set_xlabel("Model")
-    ax.set_ylabel("MAE (mg/dL)")
+    ax.set_ylabel("Test MAE (mg/dL)")
     ax.legend(title="Feature set")
     ax.grid(axis="y", alpha=0.3)
+
+    for container in ax.containers:
+        ax.bar_label(
+            container,
+            fmt="%.2f",
+            padding=3,
+            fontsize=9,
+        )
 
     plt.xticks(rotation=0)
     plt.tight_layout()
 
-    plt.savefig(out_path, dpi=200)
+    plt.savefig(
+        out_path,
+        dpi=300,
+        bbox_inches="tight",
+    )
+
     plt.close()
 
-    print(f"Saved figure to {out_path}")
+    print(f"Saved {out_path}")
 
 
 def main() -> None:
     if not RESULTS_PATH.exists():
         raise FileNotFoundError(
-            f"Missing {RESULTS_PATH}. Run src/models/train_context_baselines.py first."
+            f"Missing {RESULTS_PATH}"
         )
+
+    FIGURES_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     results = pd.read_csv(RESULTS_PATH)
 
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-
-    make_target_plot(
+    make_horizon_plot(
         results,
-        target="target_glucose_30min",
+        horizon=30,
         out_path=FIGURES_DIR / "context_vs_cgm_mae_30min.png",
     )
 
-    make_target_plot(
+    make_horizon_plot(
         results,
-        target="target_glucose_60min",
+        horizon=60,
         out_path=FIGURES_DIR / "context_vs_cgm_mae_60min.png",
     )
 
