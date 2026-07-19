@@ -155,9 +155,12 @@ def derive_validation_thresholds(
             len(uncertainty),
         )
 
-        threshold = float(
-            uncertainty.iloc[n_keep - 1]
-        )
+        if requested_coverage == 1.0:
+            threshold = float("inf")
+        else:
+            threshold = float(
+                uncertainty.iloc[n_keep - 1]
+            )
 
         validation_kept = validation_df[
             validation_df["prediction_std"]

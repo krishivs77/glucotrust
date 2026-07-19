@@ -1,0 +1,17 @@
+feature_set,horizon_minutes,target,requested_coverage,uncertainty_threshold,validation_total_predictions,validation_kept_predictions,achieved_validation_coverage
+cgm_plus_context,30,target_glucose_30min,1.0,inf,24854,24854,1.0
+cgm_plus_context,30,target_glucose_30min,0.9,3.4675527,24854,22369,0.9000160939888951
+cgm_plus_context,30,target_glucose_30min,0.8,2.6047761,24854,19884,0.8000321879777903
+cgm_plus_context,30,target_glucose_30min,0.7,2.1216123,24854,17398,0.7000080469944475
+cgm_plus_context,30,target_glucose_30min,0.6,1.7893256,24854,14913,0.6000241409833427
+cgm_plus_context,30,target_glucose_30min,0.5,1.544417,24854,12427,0.5
+cgm_plus_context,30,target_glucose_30min,0.4,1.3465817,24854,9942,0.40001609398889515
+cgm_plus_context,30,target_glucose_30min,0.3,1.1755522,24854,7457,0.3000321879777903
+cgm_plus_context,60,target_glucose_60min,1.0,inf,24470,24470,1.0
+cgm_plus_context,60,target_glucose_60min,0.9,5.2197824,24470,22023,0.9
+cgm_plus_context,60,target_glucose_60min,0.8,3.9358041,24470,19576,0.8
+cgm_plus_context,60,target_glucose_60min,0.7,3.237978,24470,17129,0.7
+cgm_plus_context,60,target_glucose_60min,0.6,2.752137,24470,14682,0.6
+cgm_plus_context,60,target_glucose_60min,0.5,2.367117,24470,12235,0.5
+cgm_plus_context,60,target_glucose_60min,0.4,2.072003,24470,9788,0.4
+cgm_plus_context,60,target_glucose_60min,0.3,1.8013747,24470,7341,0.3

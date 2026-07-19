@@ -1,3 +1,5 @@
-model,feature_set,target,n_models,bootstrap_frac,mae,rmse,r2,uncertainty_error_spearman
-context_xgboost_ensemble,cgm_plus_context,target_glucose_30min,10,0.85,14.210769629422424,20.5074724537348,0.8845084466836269,0.29592468313254466
-context_xgboost_ensemble,cgm_plus_context,target_glucose_60min,10,0.85,24.441802589447278,33.32365376866681,0.6951199143114799,0.23798300960203855
+model,feature_set,horizon_minutes,target,evaluation_split,n_rows,n_models,bootstrap_frac,mae,rmse,r2,median_absolute_error,uncertainty_error_spearman
+context_xgboost_ensemble,cgm_plus_context,30,target_glucose_30min,test,29001,10,0.85,13.807632024713781,19.585366235261493,0.8955297933905896,9.727516174316406,0.29332792693454757
+context_xgboost_ensemble,cgm_plus_context,30,target_glucose_30min,validation,24854,10,0.85,15.1457519219677,22.150910183660617,0.8613982876938301,10.365531921386719,0.2934920596204799
+context_xgboost_ensemble,cgm_plus_context,60,target_glucose_60min,test,28600,10,0.85,23.757712230815756,32.20176042542193,0.7161924095990791,17.825103759765625,0.23765534534721994
+context_xgboost_ensemble,cgm_plus_context,60,target_glucose_60min,validation,24470,10,0.85,25.533919110315694,35.51394819145372,0.6445939771280661,18.8629150390625,0.24559624574143935
