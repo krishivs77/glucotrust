@@ -52,15 +52,33 @@ def resample_patient_split(df: pd.DataFrame) -> pd.DataFrame:
     timeline["split"] = split
     timeline["source_file"] = source_file
 
-    # Track whether this timestamp had an observed CGM value before interpolation.
-    timeline["glucose_observed"] = timeline["glucose"].notna().astype(int)
+    # Preserve the real measurement separately from any value made available
+    # through causal past-only filling.
+    timeline = timeline.rename(columns={"glucose": "glucose_observed"})
 
-    # Fill short CGM gaps only. Limit 3 = up to 15 minutes.
-    timeline["glucose"] = timeline["glucose"].interpolate(
-        method="time",
-        limit=3,
-        limit_direction="both",
+    observed_mask = timeline["glucose_observed"].notna()
+
+    # Record the timestamp of each real observation, then carry that timestamp
+    # forward for at most three 5-minute rows.
+    source_timestamp = timeline.index.to_series().where(observed_mask)
+    timeline["glucose_source_timestamp"] = source_timestamp.ffill(limit=3)
+
+    # Carry only past observations forward, for at most 15 minutes.
+    timeline["glucose_causal"] = timeline["glucose_observed"].ffill(limit=3)
+
+    timeline["glucose_age_minutes"] = (
+        timeline.index.to_series() - timeline["glucose_source_timestamp"]
+    ).dt.total_seconds() / 60
+
+    timeline["glucose_state"] = "missing"
+    timeline.loc[observed_mask, "glucose_state"] = "observed"
+
+    causally_imputed_mask = (
+        timeline["glucose_observed"].isna()
+        & timeline["glucose_causal"].notna()
     )
+
+    timeline.loc[causally_imputed_mask, "glucose_state"] = "causally_imputed"
 
     timeline = timeline.reset_index().rename(columns={"timestamp": "timestamp"})
 
@@ -80,10 +98,9 @@ def main() -> None:
 
     timeline = pd.concat(timelines, ignore_index=True)
 
-    # Keep rows where glucose is available after short-gap interpolation.
-    before = len(timeline)
-    timeline = timeline.dropna(subset=["glucose"]).copy()
-    after = len(timeline)
+    total_rows = len(timeline)
+    available_rows = timeline["glucose_causal"].notna().sum()
+    missing_rows = timeline["glucose_causal"].isna().sum()
 
     # Nice ordering.
     timeline = timeline[
@@ -92,8 +109,11 @@ def main() -> None:
             "split",
             "source_file",
             "timestamp",
-            "glucose",
             "glucose_observed",
+            "glucose_causal",
+            "glucose_state",
+            "glucose_source_timestamp",
+            "glucose_age_minutes",
         ]
     ]
 
@@ -102,8 +122,9 @@ def main() -> None:
 
     print()
     print(f"Saved CGM timeline to {OUT_PATH}")
-    print(f"Rows before dropping long gaps: {before:,}")
-    print(f"Rows after dropping long gaps:  {after:,}")
+    print(f"Total five-minute grid rows: {total_rows:,}")
+    print(f"Rows with causal glucose:     {available_rows:,}")
+    print(f"Rows remaining missing:       {missing_rows:,}")
     print()
     print("Rows by split:")
     print(timeline["split"].value_counts())
